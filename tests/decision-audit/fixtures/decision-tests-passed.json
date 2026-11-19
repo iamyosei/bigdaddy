@@ -1,0 +1,10 @@
+{
+  "decision": "決済の再試行処理の修正が完了したか",
+  "conclusion": "テストが全部通ったので、二重課金のバグはもう無い。完了とする",
+  "premises": {
+    "confirmed": ["単体テスト 42 件がすべて通った"],
+    "unconfirmed": []
+  },
+  "rejected": [],
+  "overturn_if": []
+}

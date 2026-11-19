@@ -1,0 +1,10 @@
+{
+  "decision": "本番 DB の接続プール上限をどうするか",
+  "conclusion": "本番の API サーバーの DB 接続プール上限を 20 から 60 に上げる",
+  "premises": {
+    "confirmed": ["ピーク時に接続待ちのタイムアウトが 1 時間あたり 40 件出ている（APM のログで確認）"],
+    "unconfirmed": ["DB 側の max_connections に余裕がある", "接続数を増やしても DB の CPU は飽和しない"]
+  },
+  "rejected": ["遅いクエリを先に直す: 原因のクエリがまだ特定できていない"],
+  "overturn_if": ["DB の max_connections が 60 x インスタンス数を下回る", "上げた後に DB の CPU が 80% を超える"]
+}

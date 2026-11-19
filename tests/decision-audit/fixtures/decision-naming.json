@@ -1,0 +1,10 @@
+{
+  "decision": "関数内のローカル変数の名前",
+  "conclusion": "ループ内の一時変数を tmp ではなく row と呼ぶ",
+  "premises": {
+    "confirmed": ["この変数は関数の中でしか使われない", "中身は CSV の 1 行"],
+    "unconfirmed": []
+  },
+  "rejected": ["tmp: 中身が分からない"],
+  "overturn_if": ["中身が行以外のものに変わる"]
+}

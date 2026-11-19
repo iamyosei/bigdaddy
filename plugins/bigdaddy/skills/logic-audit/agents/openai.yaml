@@ -1,0 +1,4 @@
+interface:
+  display_name: "論理監査・論証構築"
+  short_description: "会話や主張の前提・推論・結論を点検し、根拠の強さに合う論証を構築する"
+  default_prompt: "$logic-audit を使って、この会話の主張と推論を点検し、問題があれば最小限の修正案を示してください。"

@@ -1,0 +1,36 @@
+{
+  "name": "bigdaddy",
+  "owner": {
+    "name": "Yosei Ito",
+    "url": "https://github.com/iamyosei"
+  },
+  "description": "利用者の作業流儀で pstack をラップしたワークフロー",
+  "plugins": [
+    {
+      "name": "bigdaddy",
+      "source": "./plugins/bigdaddy",
+      "version": "0.15.0"
+    },
+    {
+      "name": "pstack",
+      "source": {
+        "source": "git-subdir",
+        "url": "cursor/plugins",
+        "path": "harness/pstack/claude-code",
+        "ref": "main",
+        "sha": "9580c23696ac8d7abed0c166f2f9918800afb819"
+      },
+      "description": "bigdaddy が部品として呼ぶ pstack。sha で固定し、上げるときは差分を読んでから"
+    },
+    {
+      "name": "yomiyasu",
+      "source": {
+        "source": "github",
+        "repo": "nanaism/yomiyasu",
+        "ref": "main",
+        "sha": "c2ffae670994fec96daef92e0bc219f5c1923113"
+      },
+      "description": "日本語の文章生成・推敲に使う yomiyasu。sha で固定し、上げるときは差分を読んでから"
+    }
+  ]
+}
