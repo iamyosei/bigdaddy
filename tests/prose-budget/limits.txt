@@ -10,5 +10,5 @@
 6090 plugins/bigdaddy/skills/jev-gates/SKILL.md
 7346 plugins/bigdaddy/skills/logic-audit/SKILL.md
 9390 plugins/bigdaddy/skills/review-triage-loop/SKILL.md
-2874 plugins/bigdaddy/skills/review-triage-loop/references/isolated-review.md
+2909 plugins/bigdaddy/skills/review-triage-loop/references/isolated-review.md
 3229 plugins/bigdaddy/skills/usage-report/SKILL.md
