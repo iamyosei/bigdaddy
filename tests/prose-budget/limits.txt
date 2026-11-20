@@ -1,0 +1,14 @@
+# <上限の文字数> <リポジトリ直下からのパス>。パスの昇順。扱いは README の「文章の上限」。
+9812 README.md
+5698 plugins/bigdaddy/skills/agent-reasoning-playbook/SKILL.md
+12109 plugins/bigdaddy/skills/briefing/SKILL.md
+9194 plugins/bigdaddy/skills/briefing/references/brief-template.md
+2322 plugins/bigdaddy/skills/briefing/references/naze-naze.md
+1073 plugins/bigdaddy/skills/briefing/references/proxy-answers.md
+8642 plugins/bigdaddy/skills/briefing/references/topic.md
+542 plugins/bigdaddy/skills/briefing/references/writing.md
+6090 plugins/bigdaddy/skills/jev-gates/SKILL.md
+7346 plugins/bigdaddy/skills/logic-audit/SKILL.md
+9390 plugins/bigdaddy/skills/review-triage-loop/SKILL.md
+2909 plugins/bigdaddy/skills/review-triage-loop/references/isolated-review.md
+3229 plugins/bigdaddy/skills/usage-report/SKILL.md
