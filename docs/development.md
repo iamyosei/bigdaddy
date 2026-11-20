@@ -2,9 +2,9 @@
 
 bigdaddy を変更する人向けの手順。テスト、文章の上限、pstack を上げる手順をまとめる。
 
-個人の skill とワークフローはここに足す。`~/.claude/skills` に直接置かない。
+個人の skill とワークフローは bigdaddy に足す。`~/.claude/skills` に直接置かない。
 
-## hook のテスト
+## テスト
 
 hook のテストは `tests/decision-audit/run.sh`（`BIGDADDY_JEV` 未設定での無効の挙動は鍵なしで確かめる。Jev を実際に呼ぶ検査は `BIGDADDY_JEV=1` を付けたときだけ走り、付けなければ鍵があっても skip する）、`tests/review-push-guard/run.sh`（一時 git リポジトリで回す。鍵は要らない）、`tests/skill-read-guard/run.sh`（鍵は要らない）、`tests/topic-merge-guard/run.sh`（一時 git リポジトリと偽の `gh` で回す。鍵も本物の `gh` も要らない）、`tests/briefing-state/run.sh`（`SKILL.md` の状態の JSON と手順の番号を確かめる。鍵は要らない）、`tests/prose-budget/run.sh`（下の「文章の上限」を確かめる。鍵は要らない）で実行する。`route-playbook.sh` の選択肢が pstack の `poteto-mode` の一覧と `playbooks/` に合うことは `tests/route-playbook/run.sh`（鍵は要らない）で確かめる。`cloud/setup.sh` とモデル表のテスト（表が `~/.claude/rules/` に置かれること、表の値が 3 組だけであること、`CLAUDE_CODE_SUBAGENT_MODEL` が入ることを含む）は `tests/cloud-setup/run.sh` で実行する。`tests/decision-audit/run.sh` は `route-model.sh` のモデルと effort の組と、`--session` がプレイブックで主のモデルを分けることも確かめる。
 

@@ -60,9 +60,9 @@ pstack の skill を直接使うときは `/pstack:<name>` と打つ。
 | hook | 動き |
 |---|---|
 | SessionStart | briefing と poteto-mode の使い分けを文脈に出す |
-| `review-push-guard` | `git push` の前に、記録した隔離レビュー済みの head と比べ、レビュー後に変わっていれば止める |
+| `review-push-guard` | `git push` の前に、記録した隔離レビュー済みの head と比べ、記録の後にテスト・ドキュメント以外が変わっていれば止める |
 | `topic-merge-guard` | default branch に変更を入れる agent のツール呼び出しを止める |
-| `skill-read-guard` | plugin cache の `SKILL.md` を Bash で読もうとすると止める |
+| `skill-read-guard` | plugin cache の `SKILL.md` とプレイブックを、cat・sed などの Bash の読み取りコマンドで読もうとすると止める |
 | 決定の点検（PostToolUse・Stop） | `BIGDADDY_JEV=1` のときだけ、決定モードの点検を求める |
 
 hook の詳細は [docs/hooks.md](docs/hooks.md)。

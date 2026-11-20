@@ -1,6 +1,6 @@
 # hook
 
-bigdaddy が Claude Code に登録する hook の動き。登録は `plugins/bigdaddy/hooks/hooks.json`、テストは [docs/development.md](development.md#hook-のテスト) にある。
+bigdaddy が Claude Code に登録する hook の動き。登録は `plugins/bigdaddy/hooks/hooks.json`、テストは [docs/development.md](development.md#テスト) にある。
 
 ## SessionStart
 
