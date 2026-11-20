@@ -143,7 +143,7 @@ LLM 特有の「指摘されたから直さねばならない」という迎合�
 
 ### Phase 5: Agentic Loop re-entry & 1 push & 全指摘返信
 1. **検証と隔離レビュー**: `bun run lint` / `bun run typecheck` / テストをパスし、fresh 隔離 subagent レビューを通す。repo のレビュー手順に `references/isolated-review.md` の基準を上乗せする。
-2. **スタンプ**: blocking が 0 件になったら（親が「直さない」「別 PR」と返して「判断の記録」に書いたものは数に入れない） `"${CLAUDE_PLUGIN_ROOT}/skills/review-triage-loop/scripts/review-stamp.sh"` で、レビューした head を記録する。この後に振る舞いを変えるコミットを足すと、push 前の hook が止める。そのときは記録した head からの差分を再レビューし（範囲は下の「2 回目以降の blocking」のとおり）、0 件で記録し直す。UI の変更ならスクリーンショットも撮り直す。
+2. **スタンプ**: blocking が 0 件になったら（親が「直さない」「別 PR」と返して「判断の記録」に書いたものは数に入れない） `"${CLAUDE_PLUGIN_ROOT}/skills/review-triage-loop/scripts/review-stamp.sh"` で、レビューした head を記録する。この後に振る舞いを変えるコミットを足すと、push 前の hook が止める。そのときは記録した head からの差分を再レビューし（範囲は `references/isolated-review.md` の「回ごとの範囲」のとおり）、0 件で記録し直す。UI の変更ならスクリーンショットも撮り直す。
    Cursor ではエージェントのシェルに `CLAUDE_PLUGIN_ROOT` が入らない。`~/.claude/plugins/installed_plugins.json` の `bigdaddy@bigdaddy` の `installPath` を使う。
 3. **まとめて 1 push**: 全指摘への対応・設計改善を 1 コミット / 1 プッシュに集約する。
 4. **Devin への客観返信例**:
@@ -152,9 +152,9 @@ LLM 特有の「指摘されたから直さねばならない」という迎合�
    - **設計昇華修正**: `Good catch. Elevated to data model: replaced ad-hoc flags with Discriminated Union in types/state.ts, added tests in tests/state.test.ts. Resolved in <commit-hash>.`
 
 ### 2 回目以降の blocking（隔離レビューの回数と範囲）
-隔離レビューを毎回全体にかけると、毎回新しい advisory や周辺の穴が出て、直しとレビューが収束しない。範囲と流れを次のとおりに固定する。レビュアーに渡す範囲と指示は `references/isolated-review.md` の「回ごとの範囲」。
+隔離レビューを毎回全体にかけると、毎回新しい advisory や周辺の穴が出て、直しとレビューが収束しない。範囲と流れを次のとおりに固定する。
 
-1. **範囲。** 1 回目は全体を見る。2 回目以降は、直した差分だけを対象にし、受入条件・不変条件を破る blocking だけを返させる（advisory は返させない）。除外は、親が全体の再レビューを指示したときだけ。
-2. **blocking が出たら。** 2 回目以降で blocking が出たら、実装役は直さずに指摘の全文を親に送る（`briefing` の「親に返すもの」の（d））。前回送った指摘と同じ周辺かも 1 行で書く。親は指摘ごとに「目的に本質的で直す」「直さない（理由）」「別 PR」に仕分けて返す。実装役は、親が「直す」と返したものだけを直し、その差分を次の回のレビューにかける。親が応答できないときは、止めた部分を未決として PR 本文に書き、利用者に返す。
+1. **範囲。** 回ごとにレビュアーに渡す差分と、返させる finding は、`references/isolated-review.md` の「回ごとの範囲」に従う。
+2. **blocking が出たら。** 2 回目以降で blocking が出たら、実装役は直さずに指摘の全文を親に送る（`briefing` の「親に返すもの」の（d））。前回送った指摘と同じ周辺かも 1 行で書く。親は指摘ごとに「目的に本質的で直す」「直さない（理由）」「別 PR」に仕分けて、同じ送信元に返す。必要と判断したときだけ、全体の再レビューを指示する。実装役は、親が「直す」と返したものだけを直し、その差分を次の回のレビューにかける。親が応答できないときは、止めた部分を未決として PR 本文に書き、利用者に返す（`briefing` の「親に返すもの」の「返し方」の最後の項目。topic の子は、その間 topic にマージしない）。
 3. **同じ周辺で続けて出たら。** 2 回目以降の再レビューで、同じ周辺（同じファイルの同じ節・関数、または同じ不変条件の項目）に blocking が 2 回続けて出たら、親はその部分を PR から外して別 PR にするかを判断する。外すなら、実装役がその部分の差分を戻し、follow-up として PR 本文に書く。成功条件を書き換えないと完了できなくなるときは、方針の転換なので、親が利用者に返す。
 4. **記録。** 仕分けの結果と外す判断は、親が実装役に返し、実装役が PR 本文の「判断の記録」に親の決定として書く。直さない理由と、別 PR にしたものの扱いも書く。
