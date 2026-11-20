@@ -1,143 +1,143 @@
-# 内部の仕組み
+# Internals
 
-bigdaddy が依頼を PR にするまでに、どの部品が、何を状態として持ち、どこで止まるかを書く。使い方は [README](../README.md)、規則の一覧は [作業の流れ](workflow.md) にある。
+This page describes which components hold which state on the way from a request to a PR, and where each one stops. For usage, see the [README](../README.md). For the list of rules, see [Workflow](workflow.md).
 
-## 部品と置き場
+## Components and where they live
 
-bigdaddy は文章（skill）、スクリプト、hook の 3 種類でできている。判断は文章に、再現させたい機械的な処理はスクリプトに、止めたい動作は hook に置く。
+bigdaddy is made of three kinds of parts: prose (skills), scripts, and hooks. Judgment goes in prose. Mechanical processing that must be reproducible goes in scripts. Actions that must be stopped go in hooks.
 
-| 種類 | 場所 | 役割 |
+| Kind | Location | Role |
 |---|---|---|
-| skill | `plugins/bigdaddy/skills/<名前>/SKILL.md` | agent が読む手順。`references/` に補足、`scripts/` に実行するスクリプトを持つ |
-| hook | `plugins/bigdaddy/hooks/` | `hooks.json` が Claude Code のイベントに結びつける。文章で頼まずに止める |
-| モデル表 | `plugins/bigdaddy/pstack-models.md` | pstack の役割ごとのモデルと effort。利用者が `~/.claude/rules/` に写す |
-| クラウドの Setup | `cloud/setup.sh` | 手元の `~/.claude` を読まないクラウドセッションに、同じ構成を置く |
-| 依存 | `.claude-plugin/marketplace.json` | pstack と yomiyasu を sha で固定して、bigdaddy と一緒に入れる |
+| Skill | `plugins/bigdaddy/skills/<name>/SKILL.md` | Steps that the agent reads. Supplements are in `references/` and executable scripts are in `scripts/` |
+| Hook | `plugins/bigdaddy/hooks/` | `hooks.json` binds them to Claude Code events. They stop actions without asking in prose |
+| Model table | `plugins/bigdaddy/pstack-models.md` | The model and effort for each pstack role. The user copies it to `~/.claude/rules/` |
+| Cloud Setup | `cloud/setup.sh` | Puts the same setup in cloud sessions, which do not read the local `~/.claude` |
+| Dependencies | `.claude-plugin/marketplace.json` | Pins pstack and yomiyasu by sha and installs them together with bigdaddy |
 
-pstack と yomiyasu は部品として呼ぶだけで、bigdaddy は中身を持たない。pstack の skill は Skill ツールで起動できないので、agent は `SKILL.md` を Read ツールで読む。`skill-read-guard` が、Bash で読む抜け道を止める。
+pstack and yomiyasu are only called as parts. bigdaddy holds none of their contents. pstack skills cannot be started with the Skill tool, so the agent reads `SKILL.md` with the Read tool. `skill-read-guard` blocks the workaround of reading it with Bash.
 
-## skill の依存
+## Skill dependencies
 
-矢印は、手順の中で名前を挙げて呼ぶ向き。`agent-reasoning-playbook` はほかの skill から呼ばれず、agent が単独で読む。
+An arrow points in the direction of a call that names the target in a procedure. `agent-reasoning-playbook` is not called by any other skill. The agent reads it on its own.
 
 ```mermaid
 flowchart TB
     SS["SessionStart hook"] --> BR["briefing"]
-    subgraph parent["親のセッション"]
+    subgraph parent["Parent session"]
         BR --> JG["jev-gates<br/>route-playbook / route-model / jev.sh"]
-        BR --> LA["logic-audit 決定モード"]
+        BR --> LA["logic-audit decision mode"]
     end
-    BR -->|"指示書を渡す"| PM["pstack poteto-mode"]
-    subgraph child["子のセッション"]
+    BR -->|"Pass the brief"| PM["pstack poteto-mode"]
+    subgraph child["Child session"]
         PM --> RT["review-triage-loop<br/>isolated-review / review-stamp"]
     end
     RT --> JG
     RT --> LA
     BR --> YM["yomiyasu"]
     PM --> PS["pstack"]
-    JG -.->|"BIGDADDY_JEV=1 のときだけ"| TS["api.typesafe.ai"]
+    JG -.->|"Only when BIGDADDY_JEV=1"| TS["api.typesafe.ai"]
 ```
 
-## 1 枚の指示書の流れ
+## Flow of a single brief
 
 ```mermaid
 sequenceDiagram
-    actor U as 利用者
-    participant P as 親 briefing
-    participant C as 子 poteto-mode
-    participant R as 隔離レビュアー
+    actor U as User
+    participant P as Parent briefing
+    participant C as Child poteto-mode
+    participant R as Isolated reviewer
     participant G as GitHub
-    U->>P: 依頼
-    P->>P: 観察、代理回答、質問の順で空欄を埋める
-    opt 画面が変わる
-        P->>U: 画面設計の URL
-        U-->>P: 合意
+    U->>P: Request
+    P->>P: Fill the blanks by observing, answering by proxy, then asking
+    opt The screen changes
+        P->>U: URL of the screen design
+        U-->>P: Agreement
     end
-    P->>P: logic-audit で見立てを点検
-    P->>C: start_session 指示書とモデル
-    C->>C: 実装
-    C->>R: 差分と受入条件の原文
-    R-->>C: blocking と advisory
-    C->>C: 直して blocking 0 件で review-stamp
-    C->>G: push と PR
+    P->>P: Check the assessment with logic-audit
+    P->>C: start_session with the brief and the model
+    C->>C: Implement
+    C->>R: Diff and the original acceptance criteria
+    R-->>C: blocking and advisory
+    C->>C: Fix, then review-stamp at 0 blocking
+    C->>G: push and PR
     G-->>U: PR
-    U->>G: マージ
+    U->>G: Merge
 ```
 
-### 親が埋める項目
+### What the parent fills in
 
-指示書の空欄は `plugins/bigdaddy/skills/briefing/references/brief-template.md` の項目で、briefing は全部埋まるまで渡さない。埋め方は次の順で、前の手段で埋まれば次に進まない。
+The blanks of a brief are the items in `plugins/bigdaddy/skills/briefing/references/brief-template.md`. briefing does not hand over a brief until all of them are filled. The blanks are filled in the following order. If an earlier method fills a blank, do not move to the next.
 
-1. 観察する。コード、ログ、git の履歴を見る。観察で分かることは聞かない。
-2. 代理で答える。`~/.claude/bigdaddy/proxy-answers.md` があれば先に読み、無ければ `references/proxy-answers.md` を読む。
-3. 聞く。好みや仕様だけを、1 回に 1 から 3 問、推奨を付けて聞く。
+1. Observe. Look at the code, logs and git history. Do not ask about what observation can reveal.
+2. Answer by proxy. If `~/.claude/bigdaddy/proxy-answers.md` exists, read it first. Otherwise read `references/proxy-answers.md`.
+3. Ask. Ask only about preferences and specifications, one to three questions at a time, each with a recommendation.
 
-プレイブックは `route-playbook.sh` が、poteto-mode の一覧から毎回作った選択肢で決める。実装セッションの主のモデルは `route-model.sh --session <playbook>` で決め、Jev は呼ばない。Feature と Refactoring は `sonnet high`、それ以外は `opus medium`。
+The playbook is chosen by `route-playbook.sh` from options it builds each time from the poteto-mode list. The main model of the implementation session is chosen by `route-model.sh --session <playbook>`, and Jev is not called. Feature and Refactoring use `sonnet high`. The others use `opus medium`.
 
-### 子から親への返し
+### Escalation from child to parent
 
-子が利用者に聞くのは `briefing` の「本人に必ず返すもの」の 4 項目だけ。指示書の外に出る設計の選択は、次の（a）から（d）に当たるものを `SendMessage` で親に返す。
+The child asks the user only the four items in the "本人に必ず返すもの" section of `briefing`. For a design choice that goes beyond the brief, the child sends the ones that match (a) to (d) below to the parent with `SendMessage`.
 
-| 記号 | 当たるもの |
+| Mark | What matches |
 |---|---|
-| （a） | 「今 → 望む状態」に至る手段を変えるもの |
-| （b） | 他の指示書や全体の方針に影響するもの |
-| （c） | 画面設計との差 |
-| （d） | 2 回目以降の隔離レビューで出た blocking。子は直さず、指摘の全文を送る |
+| (a) | Changes the means of getting from "now" to the "desired state" |
+| (b) | Affects other briefs or the overall policy |
+| (c) | Differs from the screen design |
+| (d) | A blocking finding from the second or later isolated review. The child does not fix it and sends the full text of the finding |
 
-当たらない局所的な選択は、子が決めて PR 本文の「判断の記録」に書く。
+A local choice that matches none of these is decided by the child and written in the "判断の記録" section of the PR body.
 
-## 隔離レビュー
+## Isolated review
 
-レビュアーは実装役と別の fresh な agent で、実装役の設計書や判断理由は渡されない。渡すのは受入条件・不変条件の原文と差分だけで、同じ読み違いを繰り返さないため。
+The reviewer is a fresh agent, separate from the implementer. It does not receive the implementer's design notes or reasons for decisions. It receives only the original text of the acceptance criteria and invariants, and the diff, so that the same misreading is not repeated.
 
-| 回 | 見る範囲 | 返させるもの |
+| Round | Scope | What it returns |
 |---|---|---|
-| 1 回目 | 差分全体 | blocking、advisory |
-| 2 回目以降 | 前回レビューした head からの差分だけ | blocking だけ |
+| 1st | The whole diff | blocking, advisory |
+| 2nd and later | Only the diff from the head reviewed last time | blocking only |
 
-2 回目以降の blocking は、子が直さずに親へ送る。親が「直す」「直さない」「別 PR」に仕分け、「直す」と返したものだけを子が直して次の回にかける。同じ周辺に 2 回続けて出たら、親がその部分を別 PR にするか決める。
+From the second round on, the child does not fix blocking findings and sends them to the parent. The parent sorts them into "Fix", "Do not fix" and "Separate PR". The child fixes only those marked "Fix" and submits the next round. If findings appear twice in a row around the same area, the parent decides whether to move that part to a separate PR.
 
-blocking が 0 件になったら `review-stamp.sh` が、その head の SHA をブランチ名ごとに `$(git rev-parse --git-common-dir)/bigdaddy/review-stamps/<branch>` に 1 行で書く。置き場が worktree ごとではなく共通の git ディレクトリなのは、ブランチ名がリポジトリ全体で一意だから。
+When blocking reaches 0, `review-stamp.sh` writes the SHA of that head, per branch name, as one line to `$(git rev-parse --git-common-dir)/bigdaddy/review-stamps/<branch>`. The location is the shared git directory, not each worktree, because a branch name is unique across the whole repository.
 
-## hook の判定
+## Hook decisions
 
-hook はどれも、判断の根拠を文章ではなく、コマンドの文字列、git の状態、記録ファイルから取る。
+Every hook takes the basis for its decision from the command string, the git state and record files, not from prose.
 
-### push の前
-
-```mermaid
-flowchart TD
-    A["git push を検出"] --> B{"記録があるか"}
-    B -->|"無い"| OK["通す"]
-    B -->|"ある"| C{"記録の head と先頭が同じか"}
-    C -->|"同じ"| OK
-    C -->|"違う"| D{"差分にテスト・ドキュメント以外があるか"}
-    D -->|"無い"| OK
-    D -->|"ある"| NG["止める<br/>再レビューと記録のし直し"]
-```
-
-比べるのは、いまのブランチと、コマンドに名前が出る記録済みのブランチ。ドキュメントは、`README`・`CHANGELOG`・`LICENSE`・`CONTRIBUTING`、ルートの `docs/` と `doc/` の下の Markdown、`.rst`・`.adoc` に限る。
-
-### default branch へのマージ
-
-`topic-merge-guard` は、default branch をリポジトリから求める。git の送り先は `origin/HEAD`、無ければ `gh repo view`。求められないときは止める側に倒す。
+### Before a push
 
 ```mermaid
 flowchart TD
-    A["Bash、Monitor、端末の実行ツール、<br/>マージや直接書き込みの MCP ツール"] --> B{"default branch に変更を入れる形か"}
-    B -->|"git push、gh api の書き込み、<br/>base が default branch の gh pr merge など"| NG["止める"]
-    B -->|"base が topic の gh pr merge"| C{"次の 3 つが全部成り立つか<br/>1. PR の head が記録と一致<br/>2. --match-head-commit で SHA を固定<br/>3. cd 以外とつないでいない"}
-    C -->|"成り立つ"| OK["通す"]
-    C -->|"1 つでも欠ける"| NG
-    B -->|"それ以外"| OK
+    A["Detect git push"] --> B{"Is there a record?"}
+    B -->|"No"| OK["Allow"]
+    B -->|"Yes"| C{"Does the recorded head match the current head?"}
+    C -->|"Same"| OK
+    C -->|"Different"| D{"Does the diff include anything other than tests and documentation?"}
+    D -->|"No"| OK
+    D -->|"Yes"| NG["Block<br/>re-review and re-record"]
 ```
 
-止められないものは、スクリプトファイル経由、alias、変数展開などの間接実行と、`gh repo edit` のような列挙に無い書き込み。守る相手は agent の勘違いと先走りで、意図的に回避する agent は想定しない。
+What is compared are the current branch and the recorded branch named in the command. Documentation is limited to `README`, `CHANGELOG`, `LICENSE`, `CONTRIBUTING`, Markdown files under the root `docs/` and `doc/`, and `.rst` and `.adoc` files.
 
-## topic の状態
+### Merges to the default branch
 
-指示書が 2 枚以上のとき、状態は会話の外に置く。正本は最終 PR（draft）の本文にある `## 指示書の状態` の JSON 1 つで、親だけが書き換える。親を閉じても、同じ JSON から続けられる。
+`topic-merge-guard` derives the default branch from the repository. For git it uses `origin/HEAD` as the target, and otherwise `gh repo view`. If it cannot derive the default branch, it blocks.
+
+```mermaid
+flowchart TD
+    A["Bash, Monitor, terminal execution tools,<br/>and MCP tools that merge or write directly"] --> B{"Does it change the default branch?"}
+    B -->|"git push, gh api writes,<br/>gh pr merge with the default branch as base, and so on"| NG["Block"]
+    B -->|"gh pr merge with a topic branch as base"| C{"Do all three hold?<br/>1. The PR head matches the record<br/>2. The SHA is pinned with --match-head-commit<br/>3. Nothing but cd is chained"}
+    C -->|"All hold"| OK["Allow"]
+    C -->|"Any is missing"| NG
+    B -->|"Otherwise"| OK
+```
+
+What it cannot stop is indirect execution through script files, aliases and variable expansion, and writes that are not in its list, such as `gh repo edit`. The guard targets an agent's misunderstanding and overeagerness. It does not assume an agent that evades it on purpose.
+
+## Topic state
+
+When there are two or more briefs, the state is kept outside the conversation. The source of truth is one JSON under `## 指示書の状態` in the body of the final PR (draft). Only the parent rewrites it. If the parent is closed, work can continue from the same JSON.
 
 ```json
 {
@@ -156,60 +156,60 @@ flowchart TD
 stateDiagram-v2
     [*] --> 未着手
     未着手 --> 実行中: start_session
-    実行中 --> 未着手: 起動の実状態が無い
-    実行中 --> PRあり: 子 PR を検出
-    PRあり --> マージ済み: topic にマージ
-    実行中 --> 要確認: 止まった子など
-    PRあり --> 要確認: 止まった子など
-    要確認 --> 実行中: 利用者の指示
+    実行中 --> 未着手: No actual start state
+    実行中 --> PRあり: Child PR detected
+    PRあり --> マージ済み: Merged into topic
+    実行中 --> 要確認: Stalled child and others
+    PRあり --> 要確認: Stalled child and others
+    要確認 --> 実行中: User instruction
     マージ済み --> [*]
 ```
 
-親は起きるたびに、判定の前に実状態（origin のブランチ、`gh pr list`、`list_sessions`、`git log`）と表を照合し、食い違えば実状態を正として JSON を書き直す。次のどれかを見つけたら、該当の行（QA の blocking は全体の `qa`）を「要確認」にして利用者に返す。自動では直さない。
+Each time it wakes up, before making any decision, the parent compares the actual state (branches on origin, `gh pr list`, `list_sessions`, `git log`) with the table. If they differ, it treats the actual state as correct and rewrites the JSON. If it finds any of the following, it sets the row (for a QA blocking, the overall `qa`) to "要確認" and returns to the user. It does not fix them automatically.
 
-- 止まった子。最終更新から 3 時間以上たち、セッションが動いていない。または、終了を報告したのに子 PR が topic にマージされていない。
-- QA の blocking。
-- 解消の子でも収まらないコンフリクト。
-- 表と実状態の食い違いを、実状態から一意に直せない。
-- 照合の結果から、次の動作を 1 つに決められない。
+- A stalled child. At least 3 hours have passed since the last update and the session is not running. Or the child reported completion but its child PR is not merged into the topic.
+- A QA blocking.
+- A conflict that even a resolution child cannot settle.
+- A mismatch between the table and the actual state that cannot be fixed uniquely from the actual state.
+- A comparison result that does not determine a single next action.
 
-topic を default branch に追従させるのは親の仕事で、rebase と force-push はしない。新しい子を始める前（default branch が進んでいたときだけ）と、QA の直前（毎回必ず）に、一時 worktree で `git merge origin/<default branch>` を実行する。コンフリクトは親が解かず、解消の指示書を新しい行として足す。
+Keeping the topic up to date with the default branch is the parent's job. It does not rebase or force-push. Before starting a new child (only when the default branch has advanced) and right before QA (every time), it runs `git merge origin/<default branch>` in a temporary worktree. The parent does not resolve conflicts. It adds a resolution brief as a new row.
 
 ## Jev
 
-Jev は既定で無効で、外部に出るのは `jev.sh` だけ。`BIGDADDY_JEV=1` でなければ何も呼ばず exit 3 を返し、各 skill の Jev なしの手順で進む。
+Jev is disabled by default, and `jev.sh` is the only thing that reaches outside. Unless `BIGDADDY_JEV=1` is set, it calls nothing and returns exit 3, and each skill proceeds with its steps that do not use Jev.
 
-| 終了コード | 意味 |
+| Exit code | Meaning |
 |---|---|
-| 0 | 呼び出しに成功。出力は answers だけ |
-| 1 | HTTP の失敗 |
-| 2 | 鍵が無い |
-| 3 | 無効（`BIGDADDY_JEV=1` でない） |
+| 0 | The call succeeded. The output is only answers |
+| 1 | HTTP failure |
+| 2 | No key |
+| 3 | Disabled (`BIGDADDY_JEV=1` is not set) |
 
-有効のときだけ、次の 2 つの hook が働く。
+Only when Jev is enabled, the following two hooks run.
 
-- PostToolUse の `decision-audit-nudge.sh` は、`jev.sh`・`route-playbook.sh`・`check-naze.sh` を実行した直後に、決定モードでの点検を促す。Jev は呼ばない。
-- Stop の `decision-audit-stop.sh` は、そのターンの本文を Jev に 1 回見せ、対象の意思決定があるのに点検が無ければ、1 ターンに 1 回だけ止める。Jev の鍵が無いときや失敗したときは止めない。
+- PostToolUse `decision-audit-nudge.sh` prompts a check in decision mode right after `jev.sh`, `route-playbook.sh` or `check-naze.sh` is run. It does not call Jev.
+- Stop `decision-audit-stop.sh` shows the body of that turn to Jev once. If the turn has a decision that needs a check but no check was done, it blocks once per turn. It does not block when the Jev key is missing or the call fails.
 
-## モデルの決め方
+## How models are chosen
 
-モデルと effort の組は 3 つに固定している。
+The pairs of model and effort are fixed to three.
 
-| 層 | 組 | 使う場面 |
+| Layer | Pair | When it is used |
 |---|---|---|
-| collect | `haiku high` | 事実を集める |
-| organize | `sonnet high` | 集めたものを整理する |
-| decide | `opus medium` | 取捨選択して決める |
+| collect | `haiku high` | Collect facts |
+| organize | `sonnet high` | Organize what was collected |
+| decide | `opus medium` | Choose and decide |
 
-`route-model.sh` は層を Jev で判定し、確度が低いときは一段上の層に倒す。安いモデルで失敗して手戻りすると、かえって高くつくため。`CLAUDE_CODE_SUBAGENT_MODEL=sonnet` は、`model` を付けずに起動した subagent だけに効く。
+`route-model.sh` judges the layer with Jev. When confidence is low, it falls back to the next higher layer. Failing on a cheaper model and redoing the work costs more in the end. `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` affects only subagents started without `model`.
 
-## 状態の置き場
+## Where state lives
 
-| 状態 | 置き場 | 書く人 |
+| State | Location | Who writes |
 |---|---|---|
-| 指示書 | `start_session` のプロンプト | 親 |
-| topic の状態 | 最終 PR 本文の JSON | 親だけ |
-| 隔離レビュー済みの head | `<git-common-dir>/bigdaddy/review-stamps/<branch>` | 子（`review-stamp.sh`） |
-| 判断の記録 | PR 本文の「判断の記録」 | 子と親 |
-| 代理回答の既定 | `~/.claude/bigdaddy/proxy-answers.md`、無ければ `references/proxy-answers.md` | 利用者 |
-| モデル表 | `~/.claude/rules/pstack-models.md` | 利用者が `cp` する |
+| Brief | Prompt of `start_session` | Parent |
+| Topic state | JSON in the final PR body | Parent only |
+| Head that passed isolated review | `<git-common-dir>/bigdaddy/review-stamps/<branch>` | Child (`review-stamp.sh`) |
+| Decision record | The "判断の記録" section of the PR body | Child and parent |
+| Default proxy answers | `~/.claude/bigdaddy/proxy-answers.md`, or `references/proxy-answers.md` if it does not exist | User |
+| Model table | `~/.claude/rules/pstack-models.md` | The user copies it with `cp` |

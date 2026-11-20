@@ -1,51 +1,51 @@
-# hook
+# Hooks
 
-bigdaddy が Claude Code に登録する hook の動き。登録は `plugins/bigdaddy/hooks/hooks.json`、テストは [docs/development.md](development.md#テスト) にある。
+How the hooks that bigdaddy registers with Claude Code work. The registration is in `plugins/bigdaddy/hooks/hooks.json`. The tests are described in [docs/development.md](development.md#tests).
 
 ## SessionStart
 
-briefing と poteto-mode の使い分けと、pstack の skill を Read ツールで読むことを、`session-start.sh` が JSON（`additionalContext`）で文脈に出す。
+`session-start.sh` puts two things into the context as JSON (`additionalContext`). They are how to choose between briefing and poteto-mode, and that pstack skills are read with the Read tool.
 
-## PreToolUse（Bash）、review-push-guard
+## PreToolUse (Bash), review-push-guard
 
-`git push` の前に、review-triage-loop の `review-stamp.sh` が記録した隔離レビュー済みの head と、ブランチの先頭を比べる。比べるのは、いまのブランチと、コマンドに名前が出る記録済みのブランチ。記録の後にテスト・ドキュメント以外が変わっていれば、再レビューと記録のし直し（UI の変更ならスクリーンショットの撮り直しも）を求めて止める。記録の無いブランチは止めない。
+Before `git push`, the hook compares the head recorded as reviewed in isolation by `review-stamp.sh` of review-triage-loop with the head of the branch. It compares the current branch and the recorded branch named in the command. If anything other than tests and documents changed after the record, the hook blocks the push and asks for a re-review and a new record (and new screenshots if the change is to the UI). It does not block a branch that has no record.
 
-## PreToolUse（Bash・Monitor・端末の実行ツールと、マージ・直接書き込みの MCP ツール）、topic-merge-guard
+## PreToolUse (Bash, Monitor, terminal execution tools, and merge or direct-write MCP tools), topic-merge-guard
 
-default branch に変更を入れる agent のツール呼び出しを止める。default branch はリポジトリから求め（git の送り先は `origin/HEAD`、無ければ `gh repo view`。`gh pr merge` は `gh repo view`）、求められないときも止める。
+The hook blocks agent tool calls that put changes into the default branch. It derives the default branch from the repository (for a git push destination, `origin/HEAD`, or `gh repo view` if it is absent; for `gh pr merge`, `gh repo view`). It also blocks when it cannot derive the default branch.
 
-止めるもの。
+What it blocks.
 
-- default branch に向く送り。`git push`、`git subtree push`。記録があっても止める。設定の `push.default=matching` と `remote.*.push` も見る。
-- base が default branch の `gh pr merge`。`--auto` 付きも含む。`gh pr -R <repo> merge` の形も。
-- `gh api` の `/merge`・`mergePullRequest`・`enablePullRequestAutoMerge` と、`git/refs`・`contents`・`updateRef` などへの直接の書き込み。複数行・ヒアドキュメントも。
-- マージする MCP ツールと、書き込み先が default branch か読めない直接書き込みの MCP ツール。
+- Pushes aimed at the default branch. `git push` and `git subtree push`. It blocks them even when a record exists. It also checks the settings `push.default=matching` and `remote.*.push`.
+- `gh pr merge` whose base is the default branch. This includes `--auto`. It also includes the form `gh pr -R <repo> merge`.
+- `/merge`, `mergePullRequest` and `enablePullRequestAutoMerge` in `gh api`, and direct writes to `git/refs`, `contents`, `updateRef` and similar. This includes multi-line input and here-documents.
+- MCP tools that merge, and direct-write MCP tools whose destination is the default branch or cannot be read.
 
-base がそれ以外（topic branch）の `gh pr merge` は、次の 3 つがすべて成り立つときだけ通す。
+A `gh pr merge` whose base is anything else (a topic branch) passes only when all three of the following hold.
 
-- PR の head SHA が `review-stamp.sh` の記録と一致する。
-- `--match-head-commit` でその SHA を固定している。
-- cd 以外のコマンドとつないでいない。
+- The head SHA of the PR matches the record of `review-stamp.sh`.
+- The call pins that SHA with `--match-head-commit`.
+- The call is not chained with any command other than cd.
 
-そのほかの扱い。
+Other handling.
 
-- `--disable-auto` だけの呼び出しは通す。
-- `gh` を使えない形、PR を特定できない形（PR の指定が 2 つ以上に見えるもの、xargs 経由を含む）も止める。
-- jq が無いときは、merge・push・`gh api` を含む入力を止める。
-- フックがタイムアウトしたときの扱いは Claude Code 側の仕様で、ここでは決められない。
+- A call with only `--disable-auto` passes.
+- It also blocks forms that cannot use `gh`, and forms where the PR cannot be identified (those that seem to name two or more PRs, including those through xargs).
+- Without jq, it blocks input that contains merge, push or `gh api`.
+- How a hook timeout is handled is a Claude Code specification. This document cannot decide it.
 
-### 前提
+### Assumptions
 
-agent と利用者は同じ GitHub 認証で動くので、GitHub 側の保護だけでは両者を区別できず、区別できるのは agent 側の hook になる。GitHub 側のブランチ保護や ruleset も使えるので、hook は GitHub 側の守りと重ねて使う。守る相手は agent の勘違いと先走りで、意図的に回避する agent は想定しない。スクリプトファイル経由などの間接実行は見えない。利用者が GitHub の画面や自分のシェルでマージするのは本来の経路で、対象外。あとから重ねる守りの候補は、agent 専用のアカウント・トークン。
+The agent and the user act with the same GitHub authentication. GitHub-side protection alone cannot tell them apart. Only a hook on the agent side can. GitHub branch protection and rulesets are also available, so use the hook together with the GitHub-side protection. The hook guards against the agent's misunderstandings and overreach. It does not assume an agent that evades it on purpose. It cannot see indirect execution, such as execution through a script file. A user who merges on the GitHub page or in their own shell uses the intended path, and the hook does not cover it. A candidate for a further layer is an account or token dedicated to the agent.
 
-## PreToolUse（Bash）、skill-read-guard
+## PreToolUse (Bash), skill-read-guard
 
-plugin cache の下の `SKILL.md` とプレイブックを、cat・sed・head・tail・less・bat・awk で読もうとすると止める。pstack の `SKILL.md`（原則を含む）とプレイブックは Read ツールで絶対パスを読み、bigdaddy と yomiyasu の `SKILL.md` は Skill ツールで `<plugin>:<skill>` を起動するよう返す。変数経由や for ループも止める側に倒す。cache の外のファイルと、ls・rg・grep・find・スクリプトの実行は止めない。jq が無いときは止めない。
+The hook blocks reading `SKILL.md` and playbooks under the plugin cache with cat, sed, head, tail, less, bat or awk. For the pstack `SKILL.md` (including the principles) and playbooks, the hook tells the agent to read the absolute path with the Read tool. For the `SKILL.md` of bigdaddy and yomiyasu, it tells the agent to start `<plugin>:<skill>` with the Skill tool. It also blocks reads through variables and for loops, to stay on the blocking side. It does not block files outside the cache, or ls, rg, grep, find and running scripts. It does not block when jq is absent.
 
-## PostToolUse（Bash）
+## PostToolUse (Bash)
 
-`BIGDADDY_JEV=1` のときだけ。jev-gates の `jev.sh`・`route-playbook.sh`・`check-naze.sh` を実行したときだけ、logic-audit の決定モードでの点検を求める。`route-model.sh` は対象にしない。Jev は呼ばない。
+Only when `BIGDADDY_JEV=1`. Only when `jev.sh`, `route-playbook.sh` or `check-naze.sh` of jev-gates was run, the hook asks for a check by logic-audit in decision mode. It does not cover `route-model.sh`. It does not call Jev.
 
-## Stop（決定の点検）
+## Stop (decision audit)
 
-`BIGDADDY_JEV=1` のときだけ。ターン内の発言に対象の意思決定があり、決定モードの点検が無ければ、1 ターンに 1 回だけ止めて点検を求める。Jev の鍵が無いときや呼び出しに失敗したときは止めない。
+Only when `BIGDADDY_JEV=1`. If a statement in the turn contains a decision that is subject to the audit and there is no decision-mode check, the hook stops once per turn and asks for a check. It does not stop when the Jev key is absent or the call fails.

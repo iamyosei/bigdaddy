@@ -1,96 +1,96 @@
 # bigdaddy
 
-[pstack](https://github.com/cursor/plugins/tree/main/harness/pstack/claude-code) をラップしたエージェントワークフローの Claude Code プラグイン。依頼を指示書にして、別セッションの pstack の `poteto-mode` に実装させ、隔離レビュー済みの PR まで進める。
+A Claude Code plugin, an agent workflow that wraps [pstack](https://github.com/cursor/plugins/tree/main/harness/pstack/claude-code). It turns a request into a brief, hands the brief to a separate session that runs pstack's `poteto-mode`, and carries the work to a pull request that has passed isolated review.
 
-## 仕組み
+## How it works
 
-1. 依頼を `bigdaddy:briefing` が受け、`poteto-mode` が着手できる指示書にする。
-2. 指示書を別セッションの `poteto-mode` に渡し、実装させる。
-3. 実装の差分を、実装役とは別の agent が隔離レビューする。
-4. レビュー済みの差分を PR にする。
-5. 利用者が PR をマージする。
+1. `bigdaddy:briefing` takes the request and turns it into a brief that `poteto-mode` can start from.
+2. A separate session runs `poteto-mode` on the brief and implements it.
+3. An agent other than the implementer reviews the diff in isolation.
+4. The reviewed diff becomes a pull request.
+5. You merge the pull request.
 
-指示書が 2 枚以上のときは、`topic/<slug>` に子 PR を集め、最終 PR 1 本を利用者が確かめる。詳しくは [docs/workflow.md](docs/workflow.md)。
+When there are two or more briefs, child PRs are collected on `topic/<slug>` and you check one final PR. See [docs/workflow.md](docs/workflow.md).
 
-特徴は次の 4 つ。
+Four features set it apart.
 
-- 計画と実装を別セッションに分ける。`briefing` は指示書を作るだけでコードを書かず、実装は子セッションが指示書を見て進める。
-- 利用者に聞く場面を絞る。観察と代理回答で埋まる質問は聞かない。実装が始まってから聞くのは、default branch へのマージ、本番データへの書き込み、指示書に無い外部送信と feature flag、方針の転換の 4 つだけ。
-- マージは agent にさせない。hook が default branch へのマージと push を止める。
-- レビューは実装役と別の agent がする。実装役の判断理由は渡さず、2 回目以降は直した差分だけを見る。
+- Planning and implementation run in separate sessions. `briefing` only writes the brief and never writes code. The child session implements from the brief.
+- It limits when it asks you. It does not ask what observation and proxy answers can settle. Once implementation starts, it asks only about merging to the default branch, writing to production data, external sends and feature flags the brief does not name, and a change of direction.
+- Agents do not merge. A hook blocks merges and pushes to the default branch.
+- A different agent from the implementer does the review. It never sees the implementer's reasoning, and from the second round on it reviews only the fixed diff.
 
-## 必要なもの
+## Requirements
 
-Claude Code と、hook と skill の手順が呼ぶ `git`、`jq`、`gh`。
+Claude Code, and `git`, `jq`, and `gh`, which the hooks and the skill procedures call.
 
-## インストール
+## Install
 
 ```bash
 claude plugin marketplace add iamyosei/bigdaddy
 claude plugin install bigdaddy@bigdaddy
 ```
 
-pstack は依存として一緒に入る。続けて、bigdaddy が持つ pstack のモデル表（`plugins/bigdaddy/pstack-models.md`）を `~/.claude/rules/` に写す。Claude Code は `~/.claude/rules/` の `.md` を毎セッション読むので、`~/.claude/CLAUDE.md` に `@` 行は足さない。bigdaddy を上げたら同じ `cp` をやり直す。
+pstack is installed with it as a dependency. Next, copy the pstack model table that bigdaddy carries (`plugins/bigdaddy/pstack-models.md`) to `~/.claude/rules/`. Claude Code reads the `.md` files in `~/.claude/rules/` every session, so do not add an `@` line to `~/.claude/CLAUDE.md`. After you update bigdaddy, run the same `cp` again.
 
 ```bash
 mkdir -p ~/.claude/rules && cp "$(printf '%s\n' ~/.claude/plugins/cache/bigdaddy/bigdaddy/*/pstack-models.md | sort -V | tail -n1)" ~/.claude/rules/pstack-models.md
 ```
 
-最後に、`model` を付けずに起動した subagent を sonnet にする。plugin は env を設定できないので、`~/.claude/settings.json` の `env` に自分で入れる。何度実行しても同じ結果になる。
+Last, make subagents started without a `model` run on sonnet. A plugin cannot set env, so add it to `env` in `~/.claude/settings.json` yourself. Running it again gives the same result.
 
 ```bash
 f=~/.claude/settings.json; [ -s "$f" ] || echo '{}' > "$f"; jq '.env.CLAUDE_CODE_SUBAGENT_MODEL = "sonnet"' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
 ```
 
-モデル表の考え方、Jev（任意）、以前の手順からの移行は [docs/setup.md](docs/setup.md)。
+For how the model table works, Jev (optional), and migrating from the earlier procedure, see [docs/setup.md](docs/setup.md).
 
-## 使い方
+## Usage
 
-Claude Code で普段どおり依頼する。SessionStart hook が briefing の使い方を文脈に出すので、依頼は `bigdaddy:briefing` が受ける。briefing が指示書を作って実装セッションに渡し、実装と隔離レビューが終わると PR が返ってくる。default branch へのマージは利用者がする。
+Ask for work in Claude Code as you normally do. The SessionStart hook puts the briefing guidance into context, so `bigdaddy:briefing` takes the request. It writes a brief, hands it to an implementation session, and a pull request comes back after implementation and isolated review. You merge into the default branch.
 
-- 「検索 API の遅いクエリを直して」
-- 「`docs/` の古い手順を今の実装に合わせて更新して」
+- "Fix the slow query in the search API"
+- "Update the outdated steps in `docs/` to match the current implementation"
 
-pstack の skill を直接使うときは `/pstack:<name>` と打つ。
+To use a pstack skill directly, type `/pstack:<name>`.
 
-### 使う場面
+### When to use it
 
-- 向くもの: レビューまで通した PR がほしい変更。バグの調査と修正、機能追加、リファクタリング、複数の PR に分かれる作業。
-- 向かないもの: 質問への回答や 1 行の修正。指示書にせず、そのまま直接やる。
+- Good fit: a change you want as a reviewed PR. Bug investigation and fixes, new features, refactoring, and work that splits into several PRs.
+- Poor fit: answering a question or a one-line fix. Do those directly, without a brief.
 
-### 途中で聞かれること
+### What you may be asked
 
-依頼のあと、`briefing` が、観察しても分からない好みや仕様を、1 回に 1 から 3 問、推奨を付けて聞く。見立てが依頼と違うとき、外れると手戻りが大きい判断があるとき、画面が変わるとき（画面設計の URL を見せる）は、渡す前に確認を求める。実装が始まってからは、上の 4 つ以外は聞かれない。
+After the request, `briefing` asks about preferences and specs that observation cannot settle, one to three questions at a time, with a recommendation. Before it hands off, it asks you to confirm when its reading differs from your request, when a proxy decision would be costly to get wrong, or when a screen changes (it shows a screen design URL). Once implementation starts, you are asked only about the four items above.
 
-## 中身
+## Contents
 
-| skill | 役割 |
+| skill | role |
 |---|---|
-| `briefing` | 依頼を受けて指示書にし、別セッションへ渡す。コードは書かない |
-| `jev-gates` | 分岐・絞り込み・完了判定を Jev で決める手順とスクリプト |
-| `review-triage-loop` | 外部レビューの指摘を仕分けて直す。隔離レビューの回数と範囲も決める |
-| `agent-reasoning-playbook` | 推論・検証・分解・メタ認知のチェックリスト |
-| `logic-audit` | 主張と推論を形式論理で検査し、作業中の意思決定を点検する |
-| `usage-report` | 会話ログから skill と subagent の使用回数とトークン数を集計する |
+| `briefing` | Takes a request, turns it into a brief, and hands it to another session. Writes no code |
+| `jev-gates` | Procedure and scripts for deciding branches, narrowing, and completion with Jev |
+| `review-triage-loop` | Sorts external review findings and fixes them. Also sets the number and scope of isolated review rounds |
+| `agent-reasoning-playbook` | Checklist for reasoning, verification, decomposition, and metacognition |
+| `logic-audit` | Checks claims and inferences with formal logic and audits decisions made during work |
+| `usage-report` | Counts skill and subagent uses and tokens from conversation logs |
 
-| hook | 動き |
+| hook | behavior |
 |---|---|
-| SessionStart | briefing と poteto-mode の使い分けを文脈に出す |
-| `review-push-guard` | `git push` の前に、記録した隔離レビュー済みの head と比べ、記録の後にテスト・ドキュメント以外が変わっていれば止める |
-| `topic-merge-guard` | default branch に変更を入れる agent のツール呼び出しを止める |
-| `skill-read-guard` | plugin cache の `SKILL.md` とプレイブックを、cat・sed などの Bash の読み取りコマンドで読もうとすると止める |
-| 決定の点検（PostToolUse・Stop） | `BIGDADDY_JEV=1` のときだけ、決定モードの点検を求める |
+| SessionStart | Puts the guidance on when to use briefing and poteto-mode into context |
+| `review-push-guard` | Before `git push`, compares against the recorded isolated-review head and blocks if anything other than tests or docs changed after it |
+| `topic-merge-guard` | Blocks agent tool calls that put changes into the default branch |
+| `skill-read-guard` | Blocks reading a `SKILL.md` or playbook in the plugin cache with Bash read commands such as cat and sed |
+| Decision audit (PostToolUse, Stop) | Only when `BIGDADDY_JEV=1`, asks for a decision-mode audit |
 
-hook の詳細は [docs/hooks.md](docs/hooks.md)。
+For hook details, see [docs/hooks.md](docs/hooks.md).
 
-## ドキュメント
+## Documentation
 
-- [docs/workflow.md](docs/workflow.md): 依頼から PR までの規則と、skill の役割。
-- [docs/hooks.md](docs/hooks.md): hook の動きと、`topic-merge-guard` の前提。
-- [docs/internals.md](docs/internals.md): 部品の関係、状態の置き場、hook の判定、topic の状態遷移。
-- [docs/setup.md](docs/setup.md): モデル表、Jev、移行、Cursor、クラウドセッション。
-- [docs/development.md](docs/development.md): テスト、文章の上限、pstack を上げる手順。
+- [docs/workflow.md](docs/workflow.md): the rules from request to PR, and the role of each skill.
+- [docs/hooks.md](docs/hooks.md): what each hook does, and the assumptions behind `topic-merge-guard`.
+- [docs/internals.md](docs/internals.md): how the parts relate, where state lives, hook decisions, topic state transitions.
+- [docs/setup.md](docs/setup.md): the model table, Jev, migration, Cursor, cloud sessions.
+- [docs/development.md](docs/development.md): tests, prose limits, and how to update pstack.
 
-## ライセンス
+## License
 
-MIT（[LICENSE](LICENSE)）。
+MIT ([LICENSE](LICENSE)).

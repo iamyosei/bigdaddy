@@ -1,48 +1,48 @@
-# セットアップの詳細
+# Setup details
 
-[README のインストール](../README.md#インストール)の補足と、Cursor・クラウドセッションでの使い方。
+Notes that supplement [the README install section](../README.md#install), and how to use it in Cursor and in cloud sessions.
 
-## モデル表と subagent のモデル
+## Model table and subagent model
 
-`plugins/bigdaddy/pstack-models.md` は pstack の各役割に使うモデルと effort を `<model> <effort>` で決める。表の値の組は `opus medium`、`sonnet high`、`haiku high` の 3 つだけで、探索と実装は `sonnet high`、判断と文章は `opus medium` に寄せる。arena・architect・interrogate のパネルは `opus medium, sonnet high` の 2 本にしている。fable と xhigh・low は使わない。pstack に hook は無いので、表に hook の設定は要らない。
+`plugins/bigdaddy/pstack-models.md` sets the model and effort for each pstack role, as `<model> <effort>`. The table uses only three value pairs, `opus medium`, `sonnet high` and `haiku high`. Exploration and implementation go to `sonnet high`, and judgment and prose go to `opus medium`. The arena, architect and interrogate panels use two entries, `opus medium, sonnet high`. fable, xhigh and low are not used. pstack has no hook, so the table needs no hook setting.
 
-実装セッションの主のモデルは、この表ではなく briefing が決める。詳しくは [作業の流れ](workflow.md#実装セッションの主のモデル)。
+The model of the main agent in an implementation session is decided by briefing, not by this table. For details, see [Workflow](workflow.md#main-model-of-the-implementation-session).
 
-`CLAUDE_CODE_SUBAGENT_MODEL` を `sonnet` にするのは、`model` を付けずに起動した subagent を sonnet にするため。付けない場合は親のモデル（たいてい Opus）で動いてしまう。Agent の呼び出しで `model` を明示すればそちらが優先される。
+`CLAUDE_CODE_SUBAGENT_MODEL` is set to `sonnet` so that a subagent started without `model` runs on sonnet. Without it, such a subagent runs on the parent model (usually Opus). An explicit `model` in the Agent call takes priority.
 
-## Jev を使う（任意）
+## Using Jev (optional)
 
-Jev（TypeSafe の API）は既定で無効。使うときだけ、`~/.claude/settings.json` の `env` に `BIGDADDY_JEV=1` と `TYPESAFE_API_KEY`（キーチェーンの `typesafe-api-key` でもよい）を置く。
+Jev (the TypeSafe API) is disabled by default. Only when you use it, put `BIGDADDY_JEV=1` and `TYPESAFE_API_KEY` (the keychain entry `typesafe-api-key` also works) in `env` of `~/.claude/settings.json`.
 
 ```json
 { "env": { "BIGDADDY_JEV": "1", "TYPESAFE_API_KEY": "..." } }
 ```
 
-有効のときだけ、jev-gates のスクリプトと hook が判断材料（Stop hook はターンの本文）を `api.typesafe.ai` に送る。無効のときは何も送らず、スクリプトは exit 3 を返し、hook は何も出さない。各 skill には Jev なしの手順があるので、無効でも手順は最後まで進む。
+Only when it is enabled, the jev-gates scripts and hooks send material for judgment (for the Stop hook, the text of the turn) to `api.typesafe.ai`. When it is disabled, nothing is sent, the scripts return exit 3, and the hooks output nothing. Each skill has a procedure that does not use Jev, so the procedure runs to the end even when Jev is disabled.
 
-## 以前の手順からの移行
+## Migrating from the earlier procedure
 
-以前の手順で `~/.claude/` 直下に `pstack-models.md` を写し、`~/.claude/CLAUDE.md` にそれを読ませる `@` 行を足してある環境では、その `@` 行と直下の `pstack-models.md` を消す。残すと古い表（`strongest judgment`、effort の無い値）が `rules/` の表と一緒に読まれる。
+If your environment follows the earlier procedure, you have copied `pstack-models.md` directly under `~/.claude/` and added an `@` line to `~/.claude/CLAUDE.md` that makes it read that file. In that case, delete the `@` line and the `pstack-models.md` directly under `~/.claude/`. If you leave them, the old table (`strongest judgment`, values without effort) is read together with the table in `rules/`.
 
-## Cursor で使う
+## Using it in Cursor
 
-Cursor（3.23.12 で確認）は、`~/.claude/settings.json` で有効にした Claude Code のプラグインを読む。`claude plugin install bigdaddy@bigdaddy` のあとに、Cursor 側でやることはない。
+Cursor (checked on 3.23.12) reads the Claude Code plugins enabled in `~/.claude/settings.json`. After `claude plugin install bigdaddy@bigdaddy`, there is nothing to do on the Cursor side.
 
-- skill と hook は Claude Code のインストール先から読まれる。更新は Claude Code 側の手順（`claude plugin marketplace update bigdaddy` と `claude plugin update bigdaddy@bigdaddy`）で行う。
-- SessionStart の文脈は、hook が JSON を出すので Cursor にも届く。Cursor は JSON 以外の stdout を捨てる。
-- Cursor のエージェントのシェルには `CLAUDE_PLUGIN_ROOT` が入らない。skill の手順にあるスクリプトは、`~/.claude/plugins/installed_plugins.json` の `bigdaddy@bigdaddy` の `installPath` から呼ぶ。
+- Skills and hooks are read from the Claude Code install location. Update them with the Claude Code procedure (`claude plugin marketplace update bigdaddy` and `claude plugin update bigdaddy@bigdaddy`).
+- The SessionStart context also reaches Cursor, because the hook outputs JSON. Cursor discards stdout that is not JSON.
+- `CLAUDE_PLUGIN_ROOT` is not set in the shell of the Cursor agent. Call the scripts in the skill procedures from the `installPath` of `bigdaddy@bigdaddy` in `~/.claude/plugins/installed_plugins.json`.
 
-既知の穴は次の 2 つ。
+The two known gaps are as follows.
 
-- Stop hook（`decision-audit-stop.sh`）は `transcript_path` を読むが、Cursor は null を渡すので、何も出さずに終わる。
-- `review-push-guard.sh` と `decision-audit-nudge.sh` は Cursor でも動くが、そこでの挙動は確かめていない。
+- The Stop hook (`decision-audit-stop.sh`) reads `transcript_path`, but Cursor passes null, so it ends without output.
+- `review-push-guard.sh` and `decision-audit-nudge.sh` also run in Cursor, but their behavior there has not been checked.
 
-## クラウドセッション
+## Cloud sessions
 
-クラウドセッションは手元の `~/.claude` を読まない。claude.ai の環境設定の Setup script に `cloud/setup.sh` の中身を貼る。bigdaddy は Setup script が `claude plugin marketplace add iamyosei/bigdaddy` で足す。
+A cloud session does not read the `~/.claude` on your machine. Paste the contents of `cloud/setup.sh` into the Setup script of the claude.ai environment settings. The Setup script adds bigdaddy with `claude plugin marketplace add iamyosei/bigdaddy`.
 
-- Setup は毎セッション走るわけではなく、走った後の状態が以後のセッションで使い回される。bigdaddy を更新しても、次に Setup が走るまでクラウドには入らない。
-- Jev を使うときだけ、環境変数に `BIGDADDY_JEV=1` と `TYPESAFE_API_KEY` を設定する。無効のままなら typesafe plugin も入らない。
-- モデル表は Setup script が入った bigdaddy から `~/.claude/rules/pstack-models.md` に写す。
-- Setup script は `~/.claude/settings.json` の `env` に `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` も入れる（手元では README のインストール手順で入れる）。
-- 導入に失敗した項目は、セッション開始時に `bigdaddy-health` hook が警告として文脈に出す。
+- Setup does not run in every session. The state after it ran is reused in later sessions. Even if you update bigdaddy, it does not reach the cloud until Setup runs next.
+- Only when you use Jev, set `BIGDADDY_JEV=1` and `TYPESAFE_API_KEY` as environment variables. If it stays disabled, the typesafe plugin is not installed either.
+- The Setup script copies the model table from the installed bigdaddy to `~/.claude/rules/pstack-models.md`.
+- The Setup script also puts `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` in `env` of `~/.claude/settings.json` (on the local machine, the Install section of the README does this).
+- For an item that failed to install, the `bigdaddy-health` hook puts a warning into the context at session start.

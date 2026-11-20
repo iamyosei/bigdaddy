@@ -1,5 +1,5 @@
 #!/bin/sh
-# agent が読む文章と README と docs/*.md の文字数を tests/prose-budget/limits.txt の上限と比べる。上限の扱いは docs/development.md の「文章の上限」。
+# agent が読む文章と README と docs/*.md の文字数を tests/prose-budget/limits.txt の上限と比べる。上限の扱いは docs/development.md の "Prose limits" 節。
 # 使い方: sh tests/prose-budget/run.sh
 set -u
 

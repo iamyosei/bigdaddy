@@ -1,24 +1,24 @@
-# 開発
+# Development
 
-bigdaddy を変更する人向けの手順。テスト、文章の上限、pstack を上げる手順をまとめる。
+Steps for people who change bigdaddy. It covers tests, prose limits and updating pstack.
 
-個人の skill とワークフローは bigdaddy に足す。`~/.claude/skills` に直接置かない。
+Add personal skills and workflows to bigdaddy. Do not put them directly in `~/.claude/skills`.
 
-## テスト
+## Tests
 
-hook のテストは `tests/decision-audit/run.sh`（`BIGDADDY_JEV` 未設定での無効の挙動は鍵なしで確かめる。Jev を実際に呼ぶ検査は `BIGDADDY_JEV=1` を付けたときだけ走り、付けなければ鍵があっても skip する）、`tests/review-push-guard/run.sh`（一時 git リポジトリで回す。鍵は要らない）、`tests/skill-read-guard/run.sh`（鍵は要らない）、`tests/topic-merge-guard/run.sh`（一時 git リポジトリと偽の `gh` で回す。鍵も本物の `gh` も要らない）、`tests/briefing-state/run.sh`（`SKILL.md` の状態の JSON と手順の番号を確かめる。鍵は要らない）、`tests/prose-budget/run.sh`（下の「文章の上限」を確かめる。鍵は要らない）で実行する。`route-playbook.sh` の選択肢が pstack の `poteto-mode` の一覧と `playbooks/` に合うことは `tests/route-playbook/run.sh`（鍵は要らない）で確かめる。`cloud/setup.sh` とモデル表のテスト（表が `~/.claude/rules/` に置かれること、表の値が 3 組だけであること、`CLAUDE_CODE_SUBAGENT_MODEL` が入ることを含む）は `tests/cloud-setup/run.sh` で実行する。`tests/decision-audit/run.sh` は `route-model.sh` のモデルと effort の組と、`--session` がプレイブックで主のモデルを分けることも確かめる。
+Run the hook tests with `tests/decision-audit/run.sh` (the disabled behavior with `BIGDADDY_JEV` unset is checked without a key. Checks that actually call Jev run only with `BIGDADDY_JEV=1`, and are skipped without it even if a key exists), `tests/review-push-guard/run.sh` (runs in a temporary git repository, no key needed), `tests/skill-read-guard/run.sh` (no key needed), `tests/topic-merge-guard/run.sh` (runs with a temporary git repository and a fake `gh`, so neither a key nor a real `gh` is needed), `tests/briefing-state/run.sh` (checks the state JSON and the step numbers in `SKILL.md`, no key needed), and `tests/prose-budget/run.sh` (checks the "Prose limits" section below, no key needed). That the choices of `route-playbook.sh` match the `poteto-mode` list in pstack and `playbooks/` is checked with `tests/route-playbook/run.sh` (no key needed). Run the tests of `cloud/setup.sh` and the model table (including that the table is placed in `~/.claude/rules/`, that the table has only three pairs of values, and that `CLAUDE_CODE_SUBAGENT_MODEL` is set) with `tests/cloud-setup/run.sh`. `tests/decision-audit/run.sh` also checks the model and effort pairs of `route-model.sh`, and that `--session` splits the main model by playbook.
 
-## 文章の上限
+## Prose limits
 
-agent が読む文章（`plugins/bigdaddy/skills/*/SKILL.md` と `plugins/bigdaddy/skills/*/references/*.md`）、README、`docs/*.md` は、`tests/prose-budget/limits.txt` に Unicode の文字数の上限を持つ。`tests/prose-budget/run.sh` は、上限を超えたファイル、`limits.txt` に行の無いファイル、無いファイルを指す行を FAIL にする。
+The prose that the agent reads (`plugins/bigdaddy/skills/*/SKILL.md` and `plugins/bigdaddy/skills/*/references/*.md`), the README and `docs/*.md` each have an upper limit on the number of Unicode characters in `tests/prose-budget/limits.txt`. `tests/prose-budget/run.sh` fails on a file over its limit, a file with no line in `limits.txt`, and a line that points to a file that does not exist.
 
-- 書き直して文字数が減ったら、上限をその値に下げる。
-- 上限を上げるときは、足した文が無いとどの場面で何を間違えるかを、PR 本文に 1 文で書く。
-- 新しいファイルの行は、今の文字数で足す。行はパスの昇順に並べる。
+- If a rewrite reduces the character count, lower the limit to that value.
+- When raising a limit, write in one sentence in the PR body what goes wrong, and in which situation, without the added sentences.
+- Add a line for a new file with its current character count. Keep the lines in ascending path order.
 
-## pstack を上げる
+## Updating pstack
 
-1. [`cursor/plugins`](https://github.com/cursor/plugins) の `harness/pstack/claude-code` の差分を、いまの sha から上げ先の main まで読む。特に `docs/harness/claude-code.md`（モデル表、skill の起動、subagent の項目）、`skills/setup-pstack/SKILL.md`（役割名）、`skills/poteto-mode/SKILL.md`（プレイブックの一覧と書式）を見る。
-2. `.claude-plugin/marketplace.json` の `sha` を書き換える。
-3. `sh tests/cloud-setup/run.sh <新しい pstack の setup-pstack/SKILL.md>` と `sh tests/route-playbook/run.sh <新しい pstack の poteto-mode/SKILL.md>` を実行する。役割名やプレイブックの一覧が変わっていれば落ちる。
-4. `claude plugin marketplace update bigdaddy` を実行し、`claude plugin update pstack@bigdaddy` を実行する。
+1. Read the diff of `harness/pstack/claude-code` in [`cursor/plugins`](https://github.com/cursor/plugins), from the current sha to main of the target. In particular, look at `docs/harness/claude-code.md` (the items on the model table, skill start and subagents), `skills/setup-pstack/SKILL.md` (role names), and `skills/poteto-mode/SKILL.md` (the playbook list and format).
+2. Rewrite `sha` in `.claude-plugin/marketplace.json`.
+3. Run `sh tests/cloud-setup/run.sh <new pstack's setup-pstack/SKILL.md>` and `sh tests/route-playbook/run.sh <new pstack's poteto-mode/SKILL.md>`. They fail if the role names or the playbook list changed.
+4. Run `claude plugin marketplace update bigdaddy`, then run `claude plugin update pstack@bigdaddy`.
