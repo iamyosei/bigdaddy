@@ -2,6 +2,30 @@
 
 bigdaddy が依頼を受けてから PR が返ってくるまでの規則と、skill の役割をまとめる。概要は [README](../README.md) にある。
 
+## 全体の流れ
+
+```mermaid
+flowchart TD
+    U["利用者の依頼"] --> B["bigdaddy:briefing<br/>指示書を作る"]
+    B -->|"画面が変わる"| D["画面設計を作り、利用者が合意"]
+    D --> N
+    B --> N{"指示書の数"}
+    N -->|"1 枚"| I1["別セッションの poteto-mode が実装"]
+    I1 --> R1["隔離レビュー"]
+    R1 --> P1["default branch 向けの PR"]
+    P1 --> M["利用者がマージ"]
+    N -->|"2 枚以上"| T["親が topic/slug を切り<br/>draft PR を作る"]
+    T --> I2["依存が topic にマージ済みの指示書から<br/>子セッションが実装"]
+    I2 --> R2["隔離レビュー"]
+    R2 --> C["子セッションが子 PR を topic にマージ"]
+    C -->|"残りの指示書あり"| I2
+    C -->|"全部マージ済み"| Q["親が QA<br/>opus medium の subagent"]
+    Q --> RD["結果と判断の記録を draft PR に書き、ready にする"]
+    RD --> M
+    I2 -.->|"指示書の外に出る設計の選択"| PA["親が決める"]
+    PA -.-> I2
+```
+
 ## 規則
 
 - 前段（依頼を十分で本質的な指示書にする）は `bigdaddy:briefing`、後段（実装）は別セッションの pstack の `poteto-mode`。
