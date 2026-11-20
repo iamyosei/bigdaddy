@@ -71,6 +71,7 @@ hook の詳細は [docs/hooks.md](docs/hooks.md)。
 
 - [docs/workflow.md](docs/workflow.md): 依頼から PR までの規則と、skill の役割。
 - [docs/hooks.md](docs/hooks.md): hook の動きと、`topic-merge-guard` の前提。
+- [docs/internals.md](docs/internals.md): 部品の関係、状態の置き場、hook の判定、topic の状態遷移。
 - [docs/setup.md](docs/setup.md): モデル表、Jev、移行、Cursor、クラウドセッション。
 - [docs/development.md](docs/development.md): テスト、文章の上限、pstack を上げる手順。
 
