@@ -8,7 +8,7 @@
 - 実装セッションが利用者に聞く項目は `briefing` の「本人に必ず返すもの」の 1 か所にある（default branch へのマージ、本番データへの書き込み、指示書に無い外部送信・feature flag、方針の転換）。外部送信と feature flag は、指示書を作る段階で決める。
 - 画面が変わる依頼は、指示書を渡す前に画面設計を作って利用者が合意する。道具は作業リポジトリの指定が先で、無ければ Claude Design。実装役は画面設計を見た目と操作の正本にし、QA が画面設計と実装の画面を照合する。文言・色などの値の差し替えだけの変更は除く。
 - 設計や全体の方針を決める意思決定と、目的との照合は、親（briefing）が子に渡す前に済ませる。指示書の「設計」で、実装役が設計の選択をせずに進められる状態にする。指示書の外に出る設計の選択（手段の変更、他の指示書への影響、画面設計との差）は、子が親の id に `SendMessage` で返し、親が決める。
-- 隔離レビューの 1 回目は全体を見る。2 回目以降は直した差分だけを対象にし、受入条件・不変条件を破る blocking だけを返させる（advisory は返させない）。2 回目以降で blocking が出たら、実装役は直さずに指摘の全文を親に送り、親が「目的に本質的で直す」「直さない（理由）」「別 PR」に仕分ける。同じ周辺で 2 回続けて出たら、親がその部分を PR から外して別 PR にするかを判断する。親が応答できなければ利用者に返す。除外は、親が全体の再レビューを指示したときだけ。仕分けと外す判断は PR 本文の「判断の記録」に残す。
+- 隔離レビューの回ごとの範囲は `review-triage-loop` の `references/isolated-review.md` の「回ごとの範囲」に、2 回目以降の blocking を親に送って仕分ける流れは `review-triage-loop` の「2 回目以降の blocking」にある。
 - briefing は利用者の代理として質問を減らし、poteto-mode が着手に必要な項目を埋めた指示書を作る。
 - pstack と yomiyasu（日本語の文章の推敲）は依存として一緒に入る。どちらも `marketplace.json` で sha を固定している。
 
@@ -18,7 +18,7 @@
 |---|---|
 | `briefing` | 前段。形を問わず依頼を受け、指示書の空欄を観察・代理回答・質問の順で埋め、必要なときだけなぜなぜ分析で原因を特定して、poteto-mode 向けの指示書で別セッションへ渡す。コードは書かない。代理回答の既定は `references/proxy-answers.md`。手元の `~/.claude/bigdaddy/proxy-answers.md` があれば、そちらを優先して読む |
 | `jev-gates` | 分岐・絞り込み・完了判定を Jev で決める手順と `scripts/jev.sh` |
-| `review-triage-loop` | 外部レビューの指摘を Jev で仕分け、設計に昇華して直す。隔離レビューの回数と範囲（1 回目は全体、2 回目以降は直した差分と blocking だけ）も決める |
+| `review-triage-loop` | 外部レビューの指摘を Jev で仕分け、設計に昇華して直す。隔離レビューの回数と範囲も決める |
 | `agent-reasoning-playbook` | 推論・検証・分解・メタ認知のチェックリスト |
 | `logic-audit` | 主張と推論を形式論理で検査し、根拠の強さどおりの論証を組む。決定モードでは、作業中の意思決定を 4 項目の記録と 1 回の Jev リクエストで点検する |
 | `usage-report` | 会話ログから skill・プレイブック・原則・Jev・subagent の使用回数と、モデル・本体か subagent か・agent の種類ごとのトークン数を集計する。改善点を探すときに使う |
@@ -34,11 +34,19 @@
 | PostToolUse（Bash） | `BIGDADDY_JEV=1` のときだけ。jev-gates の `jev.sh`・`route-playbook.sh`・`check-naze.sh` を実行したときだけ、logic-audit の決定モードでの点検を求める。`route-model.sh` は対象にしない。Jev は呼ばない |
 | Stop（決定の点検） | `BIGDADDY_JEV=1` のときだけ。ターン内の発言に対象の意思決定があり、決定モードの点検が無ければ、1 ターンに 1 回だけ止めて点検を求める。Jev の鍵が無いときや呼び出しに失敗したときは止めない |
 
-hook のテストは `tests/decision-audit/run.sh`（`BIGDADDY_JEV` 未設定での無効の挙動は鍵なしで確かめる。Jev を実際に呼ぶ検査は `BIGDADDY_JEV=1` を付けたときだけ走り、付けなければ鍵があっても skip する）、`tests/review-push-guard/run.sh`（一時 git リポジトリで回す。鍵は要らない）、`tests/skill-read-guard/run.sh`（鍵は要らない）、`tests/topic-merge-guard/run.sh`（一時 git リポジトリと偽の `gh` で回す。鍵も本物の `gh` も要らない）、`tests/briefing-state/run.sh`（`SKILL.md` の状態の JSON と手順の番号を確かめる。鍵は要らない）で実行する。`route-playbook.sh` の選択肢が pstack の `poteto-mode` の一覧と `playbooks/` に合うことは `tests/route-playbook/run.sh`（鍵は要らない）で確かめる。`cloud/setup.sh` とモデル表のテスト（表が `~/.claude/rules/` に置かれること、表の値が 3 組だけであること、`CLAUDE_CODE_SUBAGENT_MODEL` が入ることを含む）は `tests/cloud-setup/run.sh` で実行する。`tests/decision-audit/run.sh` は `route-model.sh` のモデルと effort の組と、`--session` がプレイブックで主のモデルを分けることも確かめる。
+hook のテストは `tests/decision-audit/run.sh`（`BIGDADDY_JEV` 未設定での無効の挙動は鍵なしで確かめる。Jev を実際に呼ぶ検査は `BIGDADDY_JEV=1` を付けたときだけ走り、付けなければ鍵があっても skip する）、`tests/review-push-guard/run.sh`（一時 git リポジトリで回す。鍵は要らない）、`tests/skill-read-guard/run.sh`（鍵は要らない）、`tests/topic-merge-guard/run.sh`（一時 git リポジトリと偽の `gh` で回す。鍵も本物の `gh` も要らない）、`tests/briefing-state/run.sh`（`SKILL.md` の状態の JSON と手順の番号を確かめる。鍵は要らない）、`tests/prose-budget/run.sh`（下の「文章の上限」を確かめる。鍵は要らない）で実行する。`route-playbook.sh` の選択肢が pstack の `poteto-mode` の一覧と `playbooks/` に合うことは `tests/route-playbook/run.sh`（鍵は要らない）で確かめる。`cloud/setup.sh` とモデル表のテスト（表が `~/.claude/rules/` に置かれること、表の値が 3 組だけであること、`CLAUDE_CODE_SUBAGENT_MODEL` が入ることを含む）は `tests/cloud-setup/run.sh` で実行する。`tests/decision-audit/run.sh` は `route-model.sh` のモデルと effort の組と、`--session` がプレイブックで主のモデルを分けることも確かめる。
 
 topic-merge-guard の前提。agent と利用者は同じ GitHub 認証で動くので、GitHub 側の保護だけでは両者を区別できず、区別できるのは agent 側の hook になる。GitHub 側のブランチ保護や ruleset も使えるので、hook は GitHub 側の守りと重ねて使う。守る相手は agent の勘違いと先走りで、意図的に回避する agent は想定しない。スクリプトファイル経由などの間接実行は見えない。利用者が GitHub の画面や自分のシェルでマージするのは本来の経路で、対象外。あとから重ねる守りの候補は、agent 専用のアカウント・トークン。
 
 個人の skill とワークフローはここに足す。`~/.claude/skills` に直接置かない。
+
+## 文章の上限
+
+agent が読む文章（`plugins/bigdaddy/skills/*/SKILL.md` と `plugins/bigdaddy/skills/*/references/*.md`）と README は、`tests/prose-budget/limits.txt` に Unicode の文字数の上限を持つ。`tests/prose-budget/run.sh` は、上限を超えたファイル、`limits.txt` に行の無いファイル、無いファイルを指す行を FAIL にする。
+
+- 書き直して文字数が減ったら、上限をその値に下げる。
+- 上限を上げるときは、足した文が無いとどの場面で何を間違えるかを、PR 本文に 1 文で書く。
+- 新しいファイルの行は、今の文字数で足す。行はパスの昇順に並べる。
 
 ## インストール
 
