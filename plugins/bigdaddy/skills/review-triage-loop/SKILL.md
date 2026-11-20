@@ -102,7 +102,7 @@ LLM 特有の「指摘されたから直さねばならない」という迎合�
   - `negligible_risk` / `intentional_yagni`: トレードオフ・仕様理由を明記して却下。
   - `out_of_scope`: Follow-up Issue を起票して PR スコープから除外。
   - `actionable_defect`: Phase 3 へ進める。
-  - 文章（SKILL.md、references、指示書の型、README）への追加を求める指摘は、`references/isolated-review.md` の「文章への finding」で判定する。
+  - 文章（SKILL.md、references、指示書の型、README、docs/*.md）への追加を求める指摘は、`references/isolated-review.md` の「文章への finding」で判定する。
 - 同じリクエストに、次節の「到達できる結果の保存」の Noul を指摘ごとに入れる。
 - 直すか直さないかの判定は、指摘ごとに `bigdaddy:logic-audit` の決定モードで点検する。`jev.sh` を実行すると hook が点検を求める。重要と判定されたものは PR 本文の「判断の記録」節に書く。
 

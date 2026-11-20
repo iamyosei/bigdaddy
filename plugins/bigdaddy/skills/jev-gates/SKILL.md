@@ -85,7 +85,7 @@ Cursor ではエージェントのシェルに `CLAUDE_PLUGIN_ROOT` が入らな
 5. **起動前と完了時に聞く。**
    - subagent や大きい探索の前に「インラインで済むか」を Noul で聞き、済むなら起動しない。
    - 起動するなら、渡す作業を `route-model.sh` にかけ、返った `model` と `effort` を Agent の `model` と `effort` に渡す。`subagent_type` は既定で `general-purpose`。poteto-mode のプレイブックの中でコードを書かせる委任先だけ `pstack:poteto-agent` にし、その prompt に poteto-mode の SKILL.md の絶対パスを入れる（poteto-agent はそのパスから skill を読む。パスが無いと止まる）。pstack のスキルが model を指定する役（review、panel など）は、その指定を優先する。
-   - `model` を付けずに起動した subagent は、`CLAUDE_CODE_SUBAGENT_MODEL` により sonnet で動く（設定は README のインストール節）。`model` を付ければそちらが優先される。
+   - `model` を付けずに起動した subagent は、`CLAUDE_CODE_SUBAGENT_MODEL` により sonnet で動く（設定は README の Install 節）。`model` を付ければそちらが優先される。
    - 編集とテストが終わったら「完了か」を Noul で聞き、高ければ念のための再検索をせずに渡す。
 
 ### 決定の点検
