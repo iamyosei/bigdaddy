@@ -1,6 +1,6 @@
 # bigdaddy
 
-依頼を指示書にして、pstack の `poteto-mode` を動かす別セッションへ渡し、隔離レビュー済みの PR まで進める Claude Code プラグイン。利用者の作業流儀で [pstack](https://github.com/cursor/plugins/tree/main/harness/pstack/claude-code)（`cursor/plugins` の Claude Code 版）をラップしている。
+[pstack](https://github.com/cursor/plugins/tree/main/harness/pstack/claude-code) をラップしたエージェントワークフローの Claude Code プラグイン。依頼を指示書にして、別セッションの pstack の `poteto-mode` に実装させ、隔離レビュー済みの PR まで進める。
 
 ## 仕組み
 

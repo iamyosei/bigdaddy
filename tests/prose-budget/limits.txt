@@ -1,5 +1,5 @@
 # <上限の文字数> <リポジトリ直下からのパス>。パスの昇順。扱いは docs/development.md の「文章の上限」。
-2851 README.md
+2819 README.md
 1919 docs/development.md
 2459 docs/hooks.md
 2650 docs/setup.md
