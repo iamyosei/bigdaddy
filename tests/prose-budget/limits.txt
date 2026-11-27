@@ -6,8 +6,8 @@
 4182 docs/setup.md
 6606 docs/workflow.md
 5698 plugins/bigdaddy/skills/agent-reasoning-playbook/SKILL.md
-14234 plugins/bigdaddy/skills/briefing/SKILL.md
-10731 plugins/bigdaddy/skills/briefing/references/brief-template.md
+14289 plugins/bigdaddy/skills/briefing/SKILL.md
+10787 plugins/bigdaddy/skills/briefing/references/brief-template.md
 2322 plugins/bigdaddy/skills/briefing/references/naze-naze.md
 1179 plugins/bigdaddy/skills/briefing/references/proxy-answers.md
 8642 plugins/bigdaddy/skills/briefing/references/topic.md
