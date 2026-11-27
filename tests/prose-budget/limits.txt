@@ -4,10 +4,10 @@
 4474 docs/hooks.md
 11587 docs/internals.md
 4182 docs/setup.md
-6503 docs/workflow.md
+6606 docs/workflow.md
 5698 plugins/bigdaddy/skills/agent-reasoning-playbook/SKILL.md
-13919 plugins/bigdaddy/skills/briefing/SKILL.md
-9952 plugins/bigdaddy/skills/briefing/references/brief-template.md
+14234 plugins/bigdaddy/skills/briefing/SKILL.md
+10572 plugins/bigdaddy/skills/briefing/references/brief-template.md
 2322 plugins/bigdaddy/skills/briefing/references/naze-naze.md
 1179 plugins/bigdaddy/skills/briefing/references/proxy-answers.md
 8642 plugins/bigdaddy/skills/briefing/references/topic.md
@@ -15,5 +15,5 @@
 6093 plugins/bigdaddy/skills/jev-gates/SKILL.md
 7346 plugins/bigdaddy/skills/logic-audit/SKILL.md
 9400 plugins/bigdaddy/skills/review-triage-loop/SKILL.md
-3226 plugins/bigdaddy/skills/review-triage-loop/references/isolated-review.md
+3357 plugins/bigdaddy/skills/review-triage-loop/references/isolated-review.md
 3229 plugins/bigdaddy/skills/usage-report/SKILL.md

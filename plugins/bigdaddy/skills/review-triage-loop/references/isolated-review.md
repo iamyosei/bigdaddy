@@ -29,6 +29,7 @@ repo のレビュー手順（`adversarial-review` などの skill、CLAUDE.md）
 - 不変条件は、利用者に見える値（画面の金額・文言・通知・課金額・遷移先）から逆にたどって確かめる。仕様の列挙は確かめる範囲の下限であって、上限ではない。
 - 不変条件と、その下の列挙が食い違っていたら、そのこと自体を finding にする。
 - 1 回目は、pstack の `blast-radius` の SKILL.md を Read ツールで読み（Skill ツールでは起動できない。場所は `~/.claude/plugins/installed_plugins.json` の `pstack@bigdaddy` の `installPath` の下の `skills/blast-radius/SKILL.md`）、差分の外に壊れうる所を挙げ、安全の根拠になる事実を実コードを動かして確かめる。そこから blocking に上げるのは、実行で再現したものか、根拠の事実を確かめられなかったもの。2 回目以降は使わない（範囲は「回ごとの範囲」のまま）。
+- 指示書に状態設計があるときは、1 回目に、実装役が照合に使ったコードのモデルの各条件が、実コードの file:line と合うかを確かめ、PR 本文の照合のコマンドを自分で実行し直す。合わない条件と、再実行で結果が変わったものは blocking にする。
 
 ## blocking に上げる finding
 
