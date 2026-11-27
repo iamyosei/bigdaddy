@@ -24,10 +24,11 @@ repo のレビュー手順（`adversarial-review` などの skill、CLAUDE.md）
 
 ## レビュアーへの指示
 
-次の 2 つを、repo のレビュー手順の指示に足す。
+次を、repo のレビュー手順の指示に足す。
 
 - 不変条件は、利用者に見える値（画面の金額・文言・通知・課金額・遷移先）から逆にたどって確かめる。仕様の列挙は確かめる範囲の下限であって、上限ではない。
 - 不変条件と、その下の列挙が食い違っていたら、そのこと自体を finding にする。
+- 1 回目は、pstack の `blast-radius` の SKILL.md を Read ツールで読み（Skill ツールでは起動できない。場所は `~/.claude/plugins/installed_plugins.json` の `pstack@bigdaddy` の `installPath` の下の `skills/blast-radius/SKILL.md`）、差分の外に壊れうる所を挙げ、安全の根拠になる事実を実コードを動かして確かめる。そこから blocking に上げるのは、実行で再現したものか、根拠の事実を確かめられなかったもの。2 回目以降は使わない（範囲は「回ごとの範囲」のまま）。
 
 ## blocking に上げる finding
 
