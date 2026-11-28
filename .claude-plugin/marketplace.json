@@ -25,12 +25,13 @@
     {
       "name": "yomiyasu",
       "source": {
-        "source": "github",
-        "repo": "nanaism/yomiyasu",
+        "source": "git-subdir",
+        "url": "nanaism/yomiyasu",
+        "path": "skills/yomiyasu",
         "ref": "main",
         "sha": "c2ffae670994fec96daef92e0bc219f5c1923113"
       },
-      "description": "日本語の文章生成・推敲に使う yomiyasu。sha で固定し、上げるときは差分を読んでから"
+      "description": "日本語の文章生成・推敲に使う yomiyasu。sha で固定し、上げるときは差分を読んでから。リポジトリのルートは plugin.json が入れ子になり claude.ai の同期で拒否されるので、skills/yomiyasu を plugin のルートにする"
     }
   ]
 }
