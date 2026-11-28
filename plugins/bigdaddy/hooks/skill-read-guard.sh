@@ -76,10 +76,11 @@ cls='[^[:space:]()=;&|<>`]'
 steps=""
 unresolved=""
 
-skill_paths=$(printf '%s\n' "$norm" | grep -oE "${cls}*plugins/cache/${cls}*/skills/[^/[:space:]]+/SKILL\.md" | sort -u)
+# Why: plugin のルートに SKILL.md を置く plugin（yomiyasu）は <marketplace>/<plugin>/<版>/SKILL.md に入り、<plugin>:<plugin> で登録される。
+skill_paths=$(printf '%s\n' "$norm" | grep -oE "${cls}*plugins/cache/${cls}*/skills/[^/[:space:]]+/SKILL\.md|${cls}*plugins/cache/[^/[:space:]]+/[^/[:space:]]+/[^/[:space:]]+/SKILL\.md" | sort -u)
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  name=$(printf '%s\n' "$p" | sed -E 's|^.*plugins/cache/[^/]+/([^/]+)/[^/]+/skills/([^/]+)/SKILL\.md$|\1:\2|')
+  name=$(printf '%s\n' "$p" | sed -E -e 's|^.*plugins/cache/[^/]+/([^/]+)/[^/]+/skills/([^/]+)/SKILL\.md$|\1:\2|' -e 's|^.*plugins/cache/[^/]+/([^/]+)/[^/]+/SKILL\.md$|\1:\1|')
   case "$name" in
     ''|*[!A-Za-z0-9._:-]*) unresolved=1 ;;
     pstack:*)
